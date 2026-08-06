@@ -1,64 +1,58 @@
-## Redis key-value Store
+# Redis Data Types
 
-Redis is an in-memory key-value store that allows fast data access by associating unique keys with various types of values.
+## Key-Value Store
 
-Using `redis-cli`, you can set and get a key-value pair.
-
-Run the following command in your terminal to open an interactive Redis session:
+Redis is an in-memory key-value store that allows fast data access by associating unique keys with various types of values. Using `redis-cli`, you can set and get key-value pairs. Run the following command in your terminal to open an interactive Redis session:
 
     $ redis-cli
+
+By default, `redis-cli` connects to `localhost:6379` and selects **database 0**. All commands in this document operate on database 0 unless stated otherwise. To use a different database, see the `SELECT` command in [Getting Started](01_redis.md#redis-databases).
 
 Create a key named "mykey" with the value "Alice":
 
     > SET mykey Alice
 
-Get the value of "mykey" by:
+Retrieve the value of "mykey":
 
     > GET mykey
 
-Some helper commands:
+In Redis, keys are case-sensitive — `mykey`, `Mykey`, and `myKey` are three distinct keys.
 
-| Command  | Description                         | Example                  |
-|----------|-------------------------------------|--------------------------|
-| `EXISTS` | Checks if a key exists.             | `EXISTS mykey`           |
-| `TYPE`   | Returns the data type of the key.   | `TYPE mykey`             |
-| `DEL`    | Delete a key                        | `DEL name`               |
+    > GET myKey
+    (nil)
 
-Returns 1 if the key exists, 0 otherwise:
+Key management commands:
 
-    > EXISTS mykey
+| Command  | Description                              | Example        |
+|----------|------------------------------------------|----------------|
+| `EXISTS` | Checks if a key exists.                  | `EXISTS mykey` |
+| `TYPE`   | Returns the data type of a key's value.  | `TYPE mykey`   |
+| `DEL`    | Deletes a key and its value.             | `DEL name`     |
 
-To return data type of a key:
+Examples:
 
-    > TYPE mykey
-    string
+    > EXISTS mykey   # Returns 1 if the key exists, 0 otherwise
+    > TYPE mykey     # Returns "string" (the type of the value)
+    > DEL mykey      # Returns 1 if the key was deleted, 0 if it did not exist
 
-To remove a key from Redis:
+## Redis Keys Are Strings
 
-    > DEL mykey
+In Redis, keys are always strings. Even when you supply a numeric literal, Redis stores it as its string representation:
 
-## Redis Keys are String
+    > SET 1 "alice"
 
-In Redis, keys are always strings.
+Although `1` looks like an integer, Redis stores the key as the string `"1"`. You can confirm this because `GET 1` and `GET "1"` return the same result:
 
-Consider the following example:
+    > GET 1
+    "alice"
+    > GET "1"
+    "alice"
 
-    > set 1 "alice"
+Note: The `TYPE` command returns the data type of the *value* stored at a key, not the type of the key itself. All keys are strings regardless of what `TYPE` reports.
 
-Redis internally converts the key 1 to a string before storing it.
+## Data Types Overview
 
-If you try to get the type of the key:
-
-    > TYPE 1
-    string
-
-Showing that the value is indeed a string.
-
-## Redis Data Types
-
-Data types refer to the type of `values` stored in Redis.
-
-Redis supports several data types optimized for different use cases:
+Redis supports several value data types, each optimized for different use cases:
 
 | Data Type             | Description                                                                     |
 |-----------------------|---------------------------------------------------------------------------------|
@@ -68,9 +62,6 @@ Redis supports several data types optimized for different use cases:
 | **Sorted Set (Zset)** | A collection of unique strings with an associated score, sorted by score.       |
 | **Hash**              | A key-value store within a key (similar to a dictionary).                       |
 | **Stream**            | A log-based data structure for message queues and event processing.             |
-| **HyperLogLog**       | A probabilistic data structure for estimating cardinality (unique count).       |
-| **Bitmap**            | A space-efficient way to store boolean values using bitwise operations.         |
-| **Geospatial**        | Stores location-based data and performs geospatial queries.                     |
 
 Each type is designed for high performance and scalability, making Redis a versatile in-memory data store.
 
@@ -78,9 +69,7 @@ Each type is designed for high performance and scalability, making Redis a versa
 
 ## String
 
-Redis String is the simplest data type, and it can store text, integers, or binary data up to 512 MB in size.
-
-You can use strings for caching, counters, session tokens, or simple key-value storage.
+Despite the name, a Redis String is not limited to text. It is a binary-safe byte sequence (up to 512 MB) that can hold text, integers, floats, JSON, or any arbitrary binary data. Redis automatically selects an efficient internal encoding based on the content (`int` for integer values, `embstr` for short strings up to 44 bytes, `raw` for everything else). Common use cases include caching, counters, session tokens, and simple key-value storage.
 
 Basic String Commands:
 
@@ -91,20 +80,11 @@ Basic String Commands:
 | `APPEND key value`    | Append a value to an existing key             | `APPEND name " Johnson"` |
 | `STRLEN key`          | Get the length of the value stored in a key   | `STRLEN name`            |
 
-To store a string in Redis:
+The `SET` and `GET` commands introduced in the [Key-Value Store](#key-value-store) section are the primary string operations. Calling `SET` on an existing key overwrites its value:
 
     > SET mykey "Hello, Redis!"
-
-This creates a key `mykey` with the value "Hello, Redis!".
-
-To get the value of a key:
-
-    > GET mykey
-
-You can overwrite an existing value:
-
     > SET mykey "Updated Value"
-    > GET mykey
+    > GET mykey             # Output: "Updated Value"
 
 You can append data to an existing key:
 
@@ -121,35 +101,33 @@ Numeric Operations:
 
 | Command        | Description                      | Example            |
 |----------------|----------------------------------|--------------------|
-| `INCR key`     | Increment a numeric key’s value  | `INCR counter`     |
-| `DECR key`     | Decrement a numeric key’s value  | `DECR counter`     |
+| `INCR key`     | Increment a numeric key's value  | `INCR counter`     |
+| `DECR key`     | Decrement a numeric key's value  | `DECR counter`     |
 | `INCRBY key n` | Increment by a specific value    | `INCRBY counter 5` |
 | `DECRBY key n` | Decrement by a specific value    | `DECRBY counter 2` |
 
-Redis can handle numbers stored as strings:
+When a string value contains a valid integer, Redis supports atomic increment and decrement operations:
 
     > SET counter 0
 
-Incrementing (INCR):
+Incrementing by 1 (INCR):
 
     > INCR counter
     > GET counter  # Output: 1
 
-Increment by a specific value (INCRBY):
+Incrementing by a specific value (INCRBY):
 
     > INCRBY counter 5
     > GET counter  # Output: 6
 
-Decrementing (DECR):
+Decrementing by 1 (DECR):
 
     > DECR counter
     > GET counter  # Output: 5
 
 ## List
 
-Redis List is an ordered collection of strings, similar to a linked list.
-
-It supports pushing, popping, trimming, and range queries, making it ideal for queues, stacks, and messaging applications.
+Redis List is an ordered collection of strings, similar to a linked list. It supports pushing, popping, trimming, and range queries, making it ideal for queues, stacks, and messaging applications.
 
 List Commands:
 
@@ -168,68 +146,64 @@ List Commands:
 | `LSET key index value`  | Set the value of an element at a given index   | `LSET tasks 1 "updated_task"` |
 | `LTRIM key start stop`  | Trim the list to keep only a range of elements | `LTRIM tasks 1 3`             |
 
-Left Push (LPUSH) – Push to the beginning:
+Adding elements to the left (LPUSH):
 
     > LPUSH mylist "A"
     > LPUSH mylist "B"
     > LPUSH mylist "C"
-    > LRANGE mylist 0 -1  # ["C", "B", "A"]
+    > LRANGE mylist 0 -1    # ["C", "B", "A"]
 
-Right Push (RPUSH) – Push to the end:
+Adding elements to the right (RPUSH):
 
     > RPUSH mylist "D"
-    > LRANGE mylist 0 -1  # ["C", "B", "A", "D"]
+    > LRANGE mylist 0 -1    # ["C", "B", "A", "D"]
 
-Get elements by range (LRANGE):
+Getting a subset of elements (LRANGE):
 
-    > LRANGE mylist 0 -1  # Get all elements
+    > LRANGE mylist 0 1     # First 2 elements only
 
-Get only the first 2 elements:
+Getting the length of a list (LLEN):
 
-    > LRANGE mylist 0 1
+    > LLEN mylist    # 4
 
-Getting the Length of a List (LLEN):
+Removing and returning the first element (LPOP):
 
-    > LLEN mylist  # 2
+    > LPOP mylist    # "C"
 
-Remove and return the first element (LPOP):
+Removing and returning the last element (RPOP):
 
-    > LPOP mylist  # "C"
+    > RPOP mylist    # "D"
 
-Remove and return the last element (RPOP):
-
-    > RPOP mylist  # "D"
-
-Blocking POPs
+Blocking pop operations:
 
 - BLPOP and BRPOP are blocking pop commands.
 - If the list is empty, Redis waits (blocks) until an element is available or timeout expires.
 - Useful for message queues where workers wait for new tasks.
 
-Removing Specific Elements (LREM):
+Removing specific elements (LREM):
 
-    > LPUSH mylist "A" "B" "A" "C" "A" "D"
-    > LREM mylist 2 "A"
+    > DEL tasks
+    > RPUSH tasks "a" "b" "a" "c" "a"   # [a, b, a, c, a]
+    > LREM tasks 2 "a"                  # Removes the first 2 occurrences of "a"
+    > LRANGE tasks 0 -1                 # [b, c, a]
 
-Getting an Element by Index (LINDEX):
+Getting an element by index (LINDEX):
 
-    > LINDEX mylist 1  # "C"
+    > LINDEX tasks 1  # "c"
 
-Replaces the second element (B) with "X":
+Setting an element by index (LSET):
 
-    > LSET mylist 1 "X"
+    > LSET tasks 1 "x"         # Replaces index 1 ("c") with "x"
+    > LRANGE tasks 0 -1        # [b, x, a]
 
-Keeps only elements from index 1 to 2:
+Trimming a list (LTRIM):
 
-    > LTRIM mylist 1 2
+    > LTRIM tasks 0 1          # Keeps only indices 0 through 1
+    > LRANGE tasks 0 -1        # [b, x]
 
 ## Set
 
-Redis Set is an unordered collection of unique strings.
-
-Unlike lists, sets do not allow duplicate values.
-
-This makes them ideal for use cases like removing duplicates, tracking unique items, and performing set operations (union, intersection, difference).
+Redis Set is an unordered collection of unique strings. Unlike lists, sets do not allow duplicate values, making them ideal for removing duplicates, tracking unique items, and performing set operations (union, intersection, difference).
 
 Set Commands:
 
@@ -258,7 +232,7 @@ Retrieving all elements from a Set (SMEMBERS):
 
     > SMEMBERS myset
 
-Returns 1 (True) if "banana" exists, 0 (False) otherwise (SISMEMBER):
+Checking if an element exists (SISMEMBER):
 
     > SISMEMBER myset "banana"
 
@@ -270,37 +244,35 @@ Removing an element from a Set (SREM):
 
     > SREM myset "banana"
 
-Union of Sets (SUNION):
+Getting the union of sets (SUNION):
 
     > SADD set1 "apple" "banana" "cherry"
     > SADD set2 "cherry" "date" "elderberry"
     > SUNION set1 set2
 
-Intersection of Sets (SINTER):
+Getting the intersection of sets (SINTER):
 
     > SINTER set1 set2
 
-Difference of Sets (SDIFF):
+Getting the difference of sets (SDIFF):
 
     > SDIFF set1 set2
 
-Removes and returns a random element (SPOP):
+Removing and returning a random element (SPOP):
 
     > SPOP myset
 
-Fetches a random element but does not remove it (SRANDMEMBER):
+Getting a random element without removing it (SRANDMEMBER):
 
     > SRANDMEMBER myset
 
-Move an element from one set to another (SMOVE):
+Moving an element between sets (SMOVE):
 
     > SMOVE set1 set2 "banana"
 
 ## Sorted Set (Zset)
 
-A Sorted Set (ZSET) in Redis is similar to a regular Set, but each element is associated with a score, which determines its sorted order.
-
-This makes ZSETs perfect for use cases like leaderboards, ranking systems, and time-series data.
+A Sorted Set (ZSET) in Redis is similar to a regular Set, but each element is associated with a score, which determines its sorted order. This makes ZSETs perfect for use cases like leaderboards, ranking systems, and time-series data.
 
 While score is explicitly assigned and used for sorting, rank is dynamically calculated based on the scores of other elements.
 
@@ -324,7 +296,7 @@ Sorted Set Commands:
 | `ZADD key score value`                   | Add a value with a score to a sorted set        | `ZADD leaderboard 100 "player1"`        |
 | `ZCARD key`                              | Get the number of elements in a sorted set      | `ZCARD leaderboard`                     |
 | `ZSCORE key value`                       | Get the score of a value                        | `ZSCORE leaderboard "player2"`          |
-| `ZRANK key value`                        | Get the rank of a value (0-based, ascending)    | `ZRANK leaderboard "player2"`           |
+| `ZRANK key value`                        | Get the rank of a value (0-based, ascending)    | `ZRANK leaderboard "player2"`          |
 | `ZREVRANK key value`                     | Get the rank of a value (descending order)      | `ZREVRANK leaderboard "player2"`        |
 | `ZRANGEBYSCORE key min max`              | Get elements within a score range               | `ZRANGEBYSCORE leaderboard 50 100`      |
 | `ZRANGE key start stop`                  | Get elements from a sorted set                  | `ZRANGE leaderboard 0 -1`               |
@@ -342,7 +314,7 @@ Adding elements to a sorted set (ZADD):
     > ZADD leaderboard 200 "Bob"
     > ZADD leaderboard 150 "Charlie"
 
-Getting the number of elements in a sorted set (ZCARD)
+Getting the number of elements in a sorted set (ZCARD):
 
     > ZCARD leaderboard  # 3
 
@@ -358,39 +330,35 @@ Getting rank of an element in descending order (ZREVRANK):
 
     > ZREVRANK leaderboard "Alice"  # 2
 
-- Retrieving elements:
+Getting elements by score range (ZRANGEBYSCORE):
 
-    Getting elements by score range (ZRANGEBYSCORE):
+    > ZRANGEBYSCORE leaderboard 100 200
 
-        > ZRANGEBYSCORE leaderboard 100 200
+Retrieving elements in ascending order (ZRANGE):
 
-    Retrieving elements in ascending order (ZRANGE):
+    > ZRANGE leaderboard 0 -1
 
-        > ZRANGE leaderboard 0 -1
+Retrieving elements in descending order (ZREVRANGE):
 
-    Retrieving elements in descending order (ZREVRANGE):
+    > ZREVRANGE leaderboard 0 -1
 
-        > ZREVRANGE leaderboard 0 -1
+Removing an element (ZREM):
 
-- Removing:
+    > ZREM leaderboard "Charlie"
 
-    Removing an element (ZREM):
+Removing elements by score range (ZREMRANGEBYSCORE):
 
-        > ZREM leaderboard "Charlie"
+    > ZREMRANGEBYSCORE leaderboard 100 150
 
-    Removing elements by score range (ZREMRANGEBYSCORE):
+Removing elements by rank (ZREMRANGEBYRANK):
 
-        > ZREMRANGEBYSCORE leaderboard 100 150
+    > ZREMRANGEBYRANK leaderboard 0 1
 
-    Removing elements by rank (ZREMRANGEBYRANK):
-
-        > ZREMRANGEBYRANK leaderboard 0 1
-
-Incrementing an element’s score (ZINCRBY):
+Incrementing an element's score (ZINCRBY):
 
     > ZINCRBY leaderboard 50 "Alice"
 
-Union of sorted sets (ZUNIONSTORE):
+Storing the union of sorted sets (ZUNIONSTORE):
 
     > ZADD set1 100 "Alice" 200 "Bob"
     > ZADD set2 150 "Charlie" 200 "Bob"
@@ -398,7 +366,7 @@ Union of sorted sets (ZUNIONSTORE):
     > ZUNIONSTORE result_set 2 set1 set2
     > ZRANGE result_set 0 -1
 
-Intersection of sorted sets (ZINTERSTORE):
+Storing the intersection of sorted sets (ZINTERSTORE):
 
     > ZADD set1 100 "Alice" 200 "Bob"
     > ZADD set2 150 "Charlie" 200 "Bob"
@@ -408,11 +376,7 @@ Intersection of sorted sets (ZINTERSTORE):
 
 ## Hash
 
-A Redis hash is a collection of key-value pairs within a single key.
-
-It is similar to a dictionary in Python or an object in JSON.
-
-Hashes are useful for storing structured data like user profiles, configuration settings, or metadata.
+A Redis hash is a collection of field-value pairs stored under a single key, similar to a dictionary in Python or an object in JSON. Hashes are useful for storing structured data like user profiles, configuration settings, or metadata.
 
 Hash Commands:
 
@@ -431,7 +395,7 @@ Hash Commands:
 | `HDEL key field`                   | Delete a field from a hash                   | `HDEL user:1 name`                |
 | `DEL key`                          | Delete a key (including hashes, lists, etc.) | `DEL user:1`                      |
 
-Set a hash field (HSET):
+Setting hash fields (HSET):
 
     > HSET user:1001 name "Alice" age 30 city "New York"
 
@@ -445,7 +409,7 @@ Getting the number of fields in a hash (HLEN):
 
     > HLEN user:1001  # 3
 
-Get all fields (HGETALL):
+Getting all fields and values (HGETALL):
 
     > HGETALL user:1001
 
@@ -456,7 +420,7 @@ Get all fields (HGETALL):
     5) "city"
     6) "New York"
 
-Getting all keys (HKEYS):
+Getting all field names (HKEYS):
 
     > HKEYS user:1001
 
@@ -472,7 +436,7 @@ Getting all values (HVALS):
     2) "30"
     3) "New York"
 
-Get a single field (HGET):
+Getting a single field (HGET):
 
     > HGET user:1001 name
 
@@ -484,11 +448,11 @@ Checking if a field exists (HEXISTS):
 
     > HEXISTS user:1001 age
 
-Increment an integer field (HINCRBY):
+Incrementing an integer field (HINCRBY):
 
     > HINCRBY user:1001 age 2
 
-Increment a float field (HINCRBYFLOAT):
+Incrementing a float field (HINCRBYFLOAT):
 
     > HINCRBYFLOAT user:1001 balance 10.5
 
@@ -500,7 +464,7 @@ Deleting an entire hash (DEL):
 
     > DEL user:1001
 
-Redis does not support JSON natively, but you can store serialized JSON in a hash:
+Redis does not support nested structures natively, but you can store serialized JSON in a hash field:
 
     > HSET user:1002 name "Bob" details '{"age": 25, "city": "Los Angeles"}'
 
@@ -525,7 +489,7 @@ To add an entry to a stream named `mystream`:
 - `temperature 25` → A field (temperature) with a value (25)
 - `humidity 60` → Another field (humidity) with a value (60)
 
-Read messages in a range (XRANGE):
+Reading messages in a range (XRANGE):
 
     > XRANGE mystream - +
 
@@ -535,9 +499,9 @@ Read messages in a range (XRANGE):
         3) "humidity"
         4) "60"
 
-Each message in a stream is a key-value pair with a unique message ID.
+Each stream entry consists of one or more field-value pairs, identified by a unique auto-generated ID.
 
-Reads 2 messages from mystream starting at ID 0 (beginning):
+Reading entries from a stream (XREAD):
 
     > XREAD COUNT 2 STREAMS mystream 0
 
@@ -545,7 +509,7 @@ Deleting messages (XDEL):
 
     > XDEL mystream 1694805958723-0
 
-A Consumer Group enables multiple clients to share stream processing:
+Consumer groups enable multiple clients to share stream processing:
 
     > XGROUP CREATE mystream mygroup 0 MKSTREAM
 
@@ -553,9 +517,25 @@ A Consumer Group enables multiple clients to share stream processing:
 - `0` → Read messages from the start.
 - `MKSTREAM` → Create the stream if it doesn't exist.
 
+
+
+
+
+## Specialized Data Abstractions
+
+The following types are not distinct data types internally. They are command sets built on top of existing types (String or Sorted Set), providing higher-level functionality.
+
+| Abstraction     | Built On       | Description                                                              |
+|-----------------|----------------|--------------------------------------------------------------------------|
+| **HyperLogLog** | String         | Probabilistic cardinality estimation (~12 KB regardless of element count). |
+| **Bitmap**      | String         | Bit-level operations for tracking boolean states efficiently.            |
+| **Geospatial**  | Sorted Set     | Location-based storage and queries using geohash-encoded scores.         |
+
 ## HyperLogLog
 
-HyperLogLogs provide approximate cardinality estimation with minimal memory usage.
+HyperLogLog is a probabilistic data structure used to estimate the number of unique elements (cardinality) in a dataset. Internally, it is stored as a String with a special encoding. It trades perfect accuracy for extreme memory efficiency — a HyperLogLog uses only ~12 KB of memory regardless of the number of elements added, even if you add millions of items.
+
+The trade-off is that the count is approximate (with a standard error of 0.81%), but for use cases like counting unique visitors, unique IP addresses, or unique search queries, this is acceptable.
 
 HyperLogLog Commands:
 
@@ -565,22 +545,47 @@ HyperLogLog Commands:
 | `PFCOUNT key`               | Get an estimated count of unique elements    | `PFCOUNT unique_users`            |
 | `PFMERGE destkey key1 key2` | Merge multiple HyperLogLogs into one         | `PFMERGE all_users users1 users2` |
 
+Adding elements and counting unique items:
+
+    > PFADD visitors "user1"
+    > PFADD visitors "user2"
+    > PFADD visitors "user1"   # Duplicate, does not increase count
+    > PFCOUNT visitors         # Output: 2
+
+Merging two HyperLogLogs (e.g., combining unique visitors from two pages):
+
+    > PFADD page1_visitors "user1" "user2" "user3"
+    > PFADD page2_visitors "user2" "user4" "user5"
+    > PFMERGE all_visitors page1_visitors page2_visitors
+    > PFCOUNT all_visitors     # Output: ~5
+
+Use HyperLogLog when you need to count distinct items and a small margin of error is acceptable. If you need exact counts, use a Set instead (at the cost of higher memory usage).
+
 ## Bitmap
 
-Bitmaps enable efficient bitwise operations for tracking states.
+Bitmaps are not a separate data type — they are operations on strings that treat each byte as an array of bits. Each bit can be 0 or 1, making bitmaps ideal for tracking boolean states efficiently (e.g., daily user logins, feature flags, or online/offline status).
+
+A bitmap key can hold up to 2^32 bits (512 MB), so you can track over 4 billion distinct boolean values in a single key.
 
 | Command                                 | Description                                                      | Example                            |
 |-----------------------------------------|------------------------------------------------------------------|------------------------------------|
 | `SETBIT key offset value`               | Sets or clears a specific bit at an offset.                      | `SETBIT mykey 7 1`                 |
 | `GETBIT key offset`                     | Retrieves a specific bit.                                        | `GETBIT mykey 7`                   |
-| `BITCOUNT key [start end]`              | Counts the number of set bits set to 1.                          | `BITCOUNT mykey`                   |
+| `BITCOUNT key [start end]`              | Counts the number of bits set to 1.                              | `BITCOUNT mykey`                   |
 | `BITFIELD key subcommand [arguments]`   | Performs multiple bitwise operations atomically.                 | `BITFIELD mykey INCRBY i5 100 1`   |
 | `BITOP operation destkey key [key ...]` | Performs bitwise operations (AND, OR, XOR, NOT) between strings. | `BITOP AND destkey key1 key2`      |
-| `BITPOS key bit [start end]`            | Finds the first bit set to 1 or 0 in a string.                   | `BITPOS mykey 1`                   |
+| `BITPOS key bit [start end]`            | Finds the first bit set to 1 or 0 in a string.                  | `BITPOS mykey 1`                   |
+
+Example — tracking daily logins (using day-of-year as the offset):
+
+    > SETBIT user:1001:logins 0 1    # User logged in on day 0
+    > SETBIT user:1001:logins 1 1    # User logged in on day 1
+    > SETBIT user:1001:logins 2 0    # User did not log in on day 2
+    > BITCOUNT user:1001:logins      # Output: 2 (logged in on 2 days)
 
 ## Geospatial
 
-Geospatial data types support location-based queries, such as finding nearby points of interest.
+Geospatial data types store longitude/latitude coordinates and support location-based queries such as finding nearby points of interest or calculating distances. Under the hood, Redis uses a sorted set with geohash-encoded scores.
 
 Geospatial Commands:
 
@@ -590,3 +595,16 @@ Geospatial Commands:
 | `GEODIST key member1 member2 unit`                     | Get the distance between two locations | `GEODIST cities Palermo Catania km`                   |
 | `GEOSEARCH key FROMMEMBER member BYRADIUS radius unit` | Search for locations within a radius   | `GEOSEARCH cities FROMMEMBER Palermo BYRADIUS 100 km` |
 | `GEORADIUS key longitude latitude radius unit`         | Get members within a radius            | `GEORADIUS cities 13.36 38.11 100 km`                 |
+
+Adding locations and querying distance:
+
+    > GEOADD cities 13.361389 38.115556 "Palermo"
+    > GEOADD cities 15.087269 37.502669 "Catania"
+    > GEODIST cities Palermo Catania km
+    "166.2742"
+
+Finding all cities within 200 km of Palermo:
+
+    > GEOSEARCH cities FROMMEMBER Palermo BYRADIUS 200 km ASC
+    1) "Palermo"
+    2) "Catania"

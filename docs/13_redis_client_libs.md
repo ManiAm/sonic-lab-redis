@@ -1,63 +1,47 @@
-## Redis Client Libraries
+# Redis Client Libraries
 
-Redis client libraries are software packages that provide an interface for applications to interact with a Redis database.
+Redis client libraries are language-specific packages that handle the communication between an application and a Redis server. They abstract the underlying RESP (REdis Serialization Protocol) wire format and provide idiomatic APIs for executing commands, managing data structures, and using features like pub/sub, pipelining, and transactions.
 
-These libraries handle the communication between the application and the Redis server.
+| **Language**  | **Client Library**    | **Description**                                                                                           |
+|---------------|-----------------------|-----------------------------------------------------------------------------------------------------------|
+| **C**         | `hiredis`             | Minimalist, high-performance C client library.                                                            |
+| **C# (.NET)** | `StackExchange.Redis` | High-performance .NET client developed by the creators of Stack Overflow.                                 |
+| **Go**        | `go-redis`            | Popular Go client with Cluster, Sentinel, and pipelining support.                                         |
+| **Java**      | `Jedis`               | Lightweight Java client with straightforward connection management.                                       |
+| **Java**      | `Lettuce`             | Reactive Java client with connection pooling, async I/O, and Cluster support.                             |
+| **Node.js**   | `node-redis`          | Official Node.js client, optimized for speed and efficiency.                                              |
+| **Node.js**   | `ioredis`             | Feature-rich Node.js client supporting Cluster, Sentinel, and Streams.                                    |
+| **Perl**      | `Redis`               | Pure Perl client supporting standard commands and pub/sub.                                                |
+| **PHP**       | `phpredis`            | Native PHP extension for fast, low-overhead Redis communication.                                          |
+| **Python**    | `redis-py`            | Official Python client with pipeline, pub/sub, and Cluster support.                                       |
+| **Ruby**      | `redis-rb`            | Official Ruby client covering the full Redis command set.                                                 |
+| **Rust**      | `redis-rs`            | Rust client designed for memory safety and performance.                                                   |
 
-They allow developers to execute commands like setting and retrieving key-value pairs, managing data structures, and handling pub/sub messaging.
-
-| **Language**  | **Client Library**    | **Description**                                                                                            |
-|---------------|-----------------------|------------------------------------------------------------------------------------------------------------|
-| **C**         | `hiredis`             | Minimalist and high-performance C client library for Redis.                                                |
-| **Go**        | `go-redis`            | Popular Go client for Redis, supports Cluster, Sentinel, and pipelining.                                   |
-| **Java**      | `Jedis`               | Lightweight and easy-to-use Java Redis client with simple connection management.                           |
-| **Java**      | `Lettuce`             | Scalable, reactive Redis client for Java with advanced features like connection pooling and async support. |
-| **C# (.NET)** | `StackExchange.Redis` | High-performance .NET client developed by the creators of Stack Overflow.                                  |
-| **Python**    | `redis-py`            | Official Redis client for Python, supports pipelines, pub/sub, and cluster modes.                          |
-| **Perl**      | `Redis`               | Pure Perl client for Redis, supporting standard commands and pub/sub messaging.                            |
-| **Node.js**   | `ioredis`             | Feature-rich Node.js client supporting Redis Cluster, Sentinel, and Streams.                               |
-| **Node.js**   | `node-redis`          | Official Redis client for Node.js, optimized for speed and efficiency.                                     |
-| **Ruby**      | `redis-rb`            | Official Redis client for Ruby, supporting various Redis features.                                         |
-| **Rust**      | `redis-rs`            | Rust client for Redis, designed for safety and performance.                                                |
-| **PHP**       | `phpredis`            | Native PHP extension for Redis, providing fast and efficient communication.                                |
-
-The choice of a client library depends on factors such as performance, feature support, and ease of integration with the application.
+The choice of library depends on factors such as performance requirements, feature support (Cluster, Sentinel, Streams), and ease of integration with the application stack.
 
 ## Shell Scripting (Bash)
 
-Shell scripting (Bash) does not have a dedicated Redis client library in the same way as other programming languages.
-
-However, you can interact with Redis using `redis-cli`.
+Bash does not have a dedicated client library, but you can interact with Redis directly through `redis-cli`.
 
 ```bash
 #!/bin/bash
 
-# Set a key
 redis-cli SET mykey "Hello, Redis!"
-
-# Get a key
 redis-cli GET mykey
-
-# Delete a key
 redis-cli DEL mykey
 ```
 
+A more advanced example using a here-document to send multiple commands over a single connection (similar to pipelining):
+
 ```bash
 #!/bin/bash
 
-redis-cli WATCH balance
-balance=$(redis-cli GET balance)
-
-if [ "$balance" -ge 100 ]; then
-    redis-cli MULTI
-    redis-cli DECRBY balance 100
-    redis-cli EXEC
-else
-    redis-cli UNWATCH
-    echo "Insufficient funds"
-fi
+redis-cli <<EOF
+SET user:name "Alice"
+SET user:age 30
+EXPIRE user:name 3600
+EXPIRE user:age 3600
+EOF
 ```
 
-Go over redis node.js examples
-
-https://www.sitepoint.com/using-redis-node-js/
+**Important limitation:** Each `redis-cli` invocation opens a separate TCP connection, so `WATCH`/`MULTI`/`EXEC` transactions cannot span multiple invocations — a `WATCH` issued in one connection has no effect on a `MULTI` in another. For transactional logic, use a proper client library (see [Python Client](14_redis_client_python.md)) or Lua scripting (see [Lua Scripting](10_redis_lua.md)).
