@@ -86,7 +86,13 @@ You can check the number of configured databases using:
     1) "databases"
     2) "16"
 
-To switch to a different database within an interactive session, use the `SELECT` command:
+### Switching Databases Interactively (`SELECT`)
+
+To switch to a different database within an interactive session, first start `redis-cli`:
+
+    $ redis-cli -p 6380
+
+Then use the `SELECT` command:
 
     > SELECT 2
     OK
@@ -101,6 +107,19 @@ To check how many keys each database holds:
 
     > SELECT 1
     > DBSIZE
+    (integer) 0
+
+### Targeting a Database from the Command Line (`-n`)
+
+To connect directly to a specific database from the command line, use the `-n` flag:
+
+    $ redis-cli -p 6380 -n 2
+
+This opens an interactive session already pointing at database 2, without needing a separate `SELECT`.
+
+It also works for one-off commands:
+
+    $ redis-cli -p 6380 -n 2 DBSIZE
     (integer) 0
 
 ### Limitations of Redis Databases
