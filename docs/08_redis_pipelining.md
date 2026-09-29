@@ -70,4 +70,4 @@ The diagram below illustrates this. Each row is a client, and the colored blocks
 - **Fire-and-forget writes** — Logging, metrics, or counters where individual failures are tolerable.
 - **Any sequence of independent commands** — If command B does not depend on the result of command A, they can be pipelined.
 
-If you need commands to execute as an uninterrupted unit, or when commands depend on each other (e.g., read a value, then decide what to write), use [Transactions](09_redis_transaction.md) instead.
+If you need commands to execute as an uninterrupted unit, use [Transactions](09_redis_transaction.md). If commands depend on each other (e.g., read a value, then decide what to write), use [Lua scripting](10_redis_lua.md) — transactions alone cannot provide conditional logic.

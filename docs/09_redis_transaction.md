@@ -64,9 +64,29 @@ QUEUED
 
 Here `SET key2` succeeds even though `INCR key1` failed. This differs from relational databases where a failed statement rolls back the entire transaction.
 
+## No Conditional Logic Inside Transactions
+
+A Redis transaction is a blind batch — every command between `MULTI` and `EXEC` is **queued, not executed**. Because nothing runs until `EXEC`, you cannot read a result mid-transaction and branch on it. There is no `IF`, no looping, and no way to make one queued command depend on the result of another.
+
+For example, you **cannot** do this inside a transaction:
+
+```
+MULTI
+value = GET balance        -- NOT possible: GET is queued, not executed
+IF value >= 100            -- NOT possible: no conditional logic available
+    DECRBY balance 100
+EXEC
+```
+
+`GET` would simply be queued and return `QUEUED`, not the actual value. The transaction has no mechanism to inspect intermediate results and decide what to do next.
+
+> To implement conditional logic atomically, use [Lua scripting](10_redis_lua.md) instead. A Lua script runs as a single atomic operation on the server and supports full programming constructs (variables, conditionals, loops).
+
 ## Optimistic Locking with WATCH
 
 `WATCH` monitors one or more keys before starting a transaction. If any watched key is modified by another client between `WATCH` and `EXEC`, the transaction is aborted (`EXEC` returns `nil`). This provides optimistic locking without holding any locks.
+
+`WATCH` is the closest transactions get to conditional behavior, but the condition check and retry logic run in your **application code**, not inside the transaction itself.
 
 **Example — Preventing Counter Overwrites**
 
@@ -81,21 +101,26 @@ If another client modifies `counter` after `WATCH` but before `EXEC`, the transa
 
 **Example — Safe Balance Deduction**
 
-Scenario: deducting money from an account without race conditions.
+Scenario: deducting money from an account without race conditions. The pseudo-code below shows the **client-side** retry loop — the `if`/`else` logic runs in your application, not inside Redis:
 
 ```
-WATCH balance
-balance = GET balance
-IF balance >= 100
+# Application-side pseudo-code (e.g., Python, Go, Node.js)
+
+WATCH balance                       # Tell Redis to monitor this key
+balance = GET balance               # Read the current value (before MULTI)
+
+if balance >= 100:                  # Decision made in application code
     MULTI
     DECRBY balance 100
-    EXEC                 # Returns nil if balance was modified by another client
-ELSE
-    UNWATCH              # Release the watch when not proceeding
-    PRINT "Insufficient funds"
+    result = EXEC                   # Returns nil if balance was modified
+    if result is nil:
+        retry from WATCH            # Another client changed balance; try again
+else:
+    UNWATCH                         # Release the watch when not proceeding
+    print("Insufficient funds")
 ```
 
-If `EXEC` returns `nil`, the client retries the entire sequence from `WATCH`. Use `UNWATCH` to release watched keys when a transaction is no longer needed.
+The key insight: `GET balance` runs **before** `MULTI`, so it returns the actual value. The application then decides whether to proceed. If another client modifies `balance` between `WATCH` and `EXEC`, Redis aborts the transaction and the application retries. Use `UNWATCH` to release watched keys when a transaction is no longer needed.
 
 ## Pipelining vs. Transactions
 
